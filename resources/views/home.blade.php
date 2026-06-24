@@ -125,18 +125,49 @@
 
 <body>
     <!-- Navbar -->
-
     <nav class="navbar navbar-expand-lg shadow-sm">
         <div class="container">
-
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link text-warning active" href="/">Home</a></li>
-                    <li class="nav-item"><a class="nav-link text-warning" href="/map">Maps</a></li>
-                    <li class="nav-item"><a class="nav-link text-warning" href="/login">Login</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link text-warning active" href="{{ route('home') }}">
+                            <i class="fa-solid fa-house"></i> Home
+                        </a>
+                    </li>
+
+                    @auth
+                        {{-- User sudah login: tampilkan nama & tombol logout --}}
+                        <li class="nav-item">
+                            <a class="nav-link text-warning" href="{{ route('dashboard') }}">
+                                <i class="fa-solid fa-user"></i> {{ auth()->user()->name }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                                @csrf
+                                <button type="submit" class="nav-link text-danger border-0 bg-transparent">
+                                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                                </button>
+                            </form>
+                        </li>
+                    @endauth
+
+                    @guest
+                        {{-- Belum login: tampilkan Register & Login --}}
+                        <li class="nav-item">
+                            <a class="nav-link text-warning" href="{{ route('register') }}">
+                                <i class="fa-solid fa-user-plus"></i> Register
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-warning" href="{{ route('login') }}">
+                                <i class="fa-solid fa-right-to-bracket"></i> Login
+                            </a>
+                        </li>
+                    @endguest
                 </ul>
             </div>
         </div>
@@ -193,41 +224,45 @@
 
 
 
-    <!-- Destinasi Section -->
+    <!-- Destinasi Section — data dari tabel points -->
     <section id="destinasi" class="destinasi-section container" data-aos="fade-up" data-aos-duration="1000">
-        <h2 class="text-center fw-bold mb-5">Destinasi Favorit</h2>
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="card destinasi-card">
-                    <img src="images/marinaaa.jpg" class="card-img-top" alt="Pantai Marina">
-                    <div class="card-body">
-                        <h5 class="card-title">Pantai Marina</h5>
-                        <p class="card-text">Keindahan pantai dengan pemandangan sunset terbaik di Semarang.</p>
-                        <a href="/map">Lihat di Peta</a>
-                    </div>
-                </div>
+        <h2 class="text-center fw-bold mb-2">Destinasi Wisata Semarang</h2>
+        <p class="text-center text-secondary mb-5">Temukan berbagai objek wisata menarik di Kota Semarang</p>
+
+        @if ($points->isEmpty())
+            <div class="text-center py-5 text-secondary">
+                <i class="fa-solid fa-map-location-dot fa-3x mb-3 opacity-25"></i>
+                <p class="mb-0">Belum ada objek wisata yang ditambahkan.</p>
             </div>
-            <div class="col-md-4">
-                <div class="card destinasi-card">
-                    <img src="images/lawangsewu.jpg" class="card-img-top" alt="Destinasi 2">
-                    <div class="card-body">
-                        <h5 class="card-title">Lawang Sewu</h5>
-                        <p class="card-text">Bangunan bersejarah yang menjadi ikon wisata di Semarang.</p>
-                        <a href="/map">Lihat di Peta</a>
+        @else
+            <div class="row g-4">
+                @foreach ($points as $point)
+                    <div class="col-md-4 col-sm-6">
+                        <div class="card destinasi-card h-100">
+                            @if ($point->image)
+                                <img src="{{ asset('storage/images/' . $point->image) }}"
+                                     class="card-img-top" alt="{{ $point->name }}"
+                                     style="height:210px;object-fit:cover">
+                            @else
+                                <div class="d-flex align-items-center justify-content-center"
+                                     style="height:210px;background:#e8f5e9">
+                                    <i class="fa-solid fa-mountain-sun fa-3x" style="color:#a5d6a7"></i>
+                                </div>
+                            @endif
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title fw-bold">{{ $point->name }}</h5>
+                                <p class="card-text text-secondary flex-grow-1">
+                                    {{ Str::limit($point->description, 100) }}
+                                </p>
+                                <a href="{{ route('map') }}" class="btn btn-success btn-sm mt-3">
+                                    <i class="fa-solid fa-map-location-dot me-1"></i>Lihat di Peta
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                @endforeach
             </div>
-            <div class="col-md-4">
-                <div class="card destinasi-card">
-                    <img src="images/kotalamaaa.jpg" class="card-img-top" alt="Destinasi 3">
-                    <div class="card-body">
-                        <h5 class="card-title">Kota Lama</h5>
-                        <p class="card-text">Jelajahi arsitektur kuno yang membawa Anda ke masa lalu.</p>
-                        <a href="/map">Lihat di Peta</a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @endif
 
         <!-- Info Kontak -->
         <div class="contact-info mt-5">

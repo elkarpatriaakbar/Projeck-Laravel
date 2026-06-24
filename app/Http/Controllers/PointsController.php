@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\File;
 
 class PointsController extends Controller
 {
+    protected PointsModel $points;
 
     public function __construct()
     {
@@ -75,8 +76,7 @@ class PointsController extends Controller
             'name'        => $request->name,
             'description' => $request->description,
             'image'       => $name_image,
-            // ✅ FIX 2: Pastikan kolom user_id ada di tabel, kalau tidak ada hapus baris ini
-            // 'user_id'  => auth()->user()->id,
+            'user_id'     => auth()->id(),
         ];
 
         // Create Data

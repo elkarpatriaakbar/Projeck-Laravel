@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\PointsModel;
 
 class PublicController extends Controller
 {
-     public function index()
+    public function index()
     {
-        $data = [
-            'title' => 'Home',
-        ];
-
-        return view('home', $data);
+        return view('home', [
+            'title'  => 'Home',
+            // Ambil data objek wisata dari tabel points
+            'points' => PointsModel::select('id', 'name', 'description', 'image')->latest()->get(),
+        ]);
     }
 }

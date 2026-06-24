@@ -3,514 +3,565 @@
 @section('styles')
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+
     <style>
+        body { overflow: hidden; }
+
         #map {
             width: 100%;
             height: calc(100vh - 56px);
-        }
-    </style>
-
-    <style>
-        #map {
-            width: 100%;
-            height: calc(100vh - 56px);
+            z-index: 1;
         }
 
-        .info.legend {
-            padding: 10px;
-            font: 12px Arial, Helvetica, sans-serif;
-            background: white;
-            background: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-            border-radius: 5px;
-            line-height: 1.5;
+        /* Floating panel kiri atas */
+        #mapPanel {
+            position: absolute;
+            top: 72px;
+            left: 12px;
+            z-index: 500;
+            width: 270px;
+            background: rgba(15,23,42,.88);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 14px;
+            padding: 1rem;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0,0,0,.35);
         }
+        #mapPanel .panel-title {
+            font-size: .7rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,.45);
+            margin-bottom: .6rem;
+        }
+        .layer-toggle {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: .4rem .6rem;
+            border-radius: 8px;
+            font-size: .82rem;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        .layer-toggle:hover { background: rgba(255,255,255,.07); }
+        .layer-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            display: inline-block; flex-shrink: 0; margin-right: 8px;
+        }
+        .form-check-input:checked { background-color: #22c55e; border-color: #22c55e; }
 
-        .info.legend h4 {
-            margin: 0 0 5px;
-            color: #333;
-            font-size: 14px;
+        /* Tombol tambah titik (hanya auth) */
+        #btnAddPoint {
+            position: absolute;
+            bottom: 32px;
+            right: 16px;
+            z-index: 500;
+            background: #22c55e;
+            color: #0f172a;
+            border: none;
+            border-radius: 50px;
+            padding: .7rem 1.4rem;
+            font-weight: 700;
+            font-size: .875rem;
+            box-shadow: 0 4px 20px rgba(34,197,94,.5);
+            transition: transform .15s, box-shadow .15s;
+            cursor: pointer;
         }
+        #btnAddPoint:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(34,197,94,.6); }
 
-        .info.legend i {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            margin-right: 5px;
+        /* Legenda bawah kanan */
+        .map-legend {
+            background: rgba(15,23,42,.82) !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,.1) !important;
+            border-radius: 10px !important;
+            color: rgba(255,255,255,.85) !important;
+            padding: 10px 14px !important;
+            font-size: .78rem !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,.3) !important;
         }
+        .map-legend h4 { color: white; font-size: .8rem; font-weight: 600; margin-bottom: 6px; }
+        .map-legend .legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+
+        /* Popup styling */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,.2) !important;
+            padding: 0 !important;
+            overflow: hidden;
+        }
+        .leaflet-popup-content { margin: 0 !important; width: 270px !important; }
+        .popup-card { padding: 14px; }
+        .popup-card img { width: 100%; height: 120px; object-fit: cover; }
+        .popup-card .popup-title { font-weight: 700; font-size: .95rem; margin-bottom: 3px; }
+        .popup-card .popup-desc { font-size: .8rem; color: #6c757d; margin-bottom: 6px; }
+        .popup-card .popup-meta { font-size: .72rem; color: #9ca3af; }
+        .popup-actions { display: flex; gap: 6px; margin-top: 10px; }
+        .popup-actions .btn { font-size: .78rem; padding: .3rem .8rem; border-radius: 20px; }
+
+        /* Modal modern */
+        .modal-content { border: none; border-radius: 16px; overflow: hidden; }
+        .modal-header { background: #0f172a; color: white; border-bottom: 1px solid rgba(255,255,255,.08); }
+        .modal-header .btn-close { filter: invert(1); }
+        .modal-header .modal-title { font-size: 1rem; font-weight: 600; }
     </style>
 @endsection
-
 
 @section('content')
+    {{-- Peta --}}
     <div id="map"></div>
 
-    <!-- Modal Create Point-->
-    <div class="modal fade" id="CreatePointModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
+    {{-- Panel Layer (floating kiri atas) --}}
+    <div id="mapPanel">
+        <div class="panel-title"><i class="fa-solid fa-layer-group me-2"></i>Layer Peta</div>
+
+        {{-- Layer statis --}}
+        <div class="layer-toggle" onclick="toggleLayer('points')">
+            <span><span class="layer-dot" style="background:#1d4ed8"></span>Objek Wisata</span>
+            <input class="form-check-input" type="checkbox" id="chkPoints" checked onclick="event.stopPropagation();toggleLayer('points')">
+        </div>
+        <div class="layer-toggle" onclick="toggleLayer('semarang')">
+            <span><span class="layer-dot" style="background:#f59e0b"></span>Batas Administrasi</span>
+            <input class="form-check-input" type="checkbox" id="chkSemarang" checked onclick="event.stopPropagation();toggleLayer('semarang')">
+        </div>
+        <div class="layer-toggle" onclick="toggleLayer('jalan')">
+            <span><span class="layer-dot" style="background:#ef4444;border-radius:2px;height:3px"></span>Jalan</span>
+            <input class="form-check-input" type="checkbox" id="chkJalan" checked onclick="event.stopPropagation();toggleLayer('jalan')">
+        </div>
+        <div class="layer-toggle" onclick="toggleLayer('polylines')">
+            <span><span class="layer-dot" style="background:#8b5cf6;border-radius:2px;height:3px"></span>Polylines DB</span>
+            <input class="form-check-input" type="checkbox" id="chkPolylines" onclick="event.stopPropagation();toggleLayer('polylines')">
+        </div>
+        <div class="layer-toggle" onclick="toggleLayer('polygons')">
+            <span><span class="layer-dot" style="background:#10b981;border-radius:2px"></span>Polygon DB</span>
+            <input class="form-check-input" type="checkbox" id="chkPolygons" onclick="event.stopPropagation();toggleLayer('polygons')">
+        </div>
+
+        {{-- Separator + layer upload --}}
+        <div id="uploadedLayers"></div>
+    </div>
+
+    {{-- Tombol tambah titik (hanya auth) --}}
+    @auth
+        <button id="btnAddPoint" title="Tambah Objek Wisata">
+            <i class="fa-solid fa-plus me-2"></i>Tambah Titik
+        </button>
+    @endauth
+
+    {{-- ============================================================
+         Modal Create Point
+    ============================================================ --}}
+    @auth
+    <div class="modal fade" id="CreatePointModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">Create Point</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title"><i class="fa-solid fa-location-dot me-2 text-success"></i>Tambah Objek Wisata</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" action="{{ route('points.store') }}" enctype="multipart/form-data">
-                    <div class="modal-body">
-
-                        @csrf
-
+                    @csrf
+                    <div class="modal-body py-3">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" name="name"
-                                placeholder="Fill point name" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            <label class="form-label fw-semibold small">Nama Objek Wisata</label>
+                            <input type="text" class="form-control" name="name" placeholder="Misal: Lawang Sewu" required>
                         </div>
                         <div class="mb-3">
-                            <label for="geom_point" class="form-label">Geometry</label>
-                            <textarea class="form-control" id="geom_point" name="geom_point" rows="3"></textarea>
+                            <label class="form-label fw-semibold small">Deskripsi</label>
+                            <textarea class="form-control" name="description" rows="3" placeholder="Deskripsi singkat objek wisata..."></textarea>
                         </div>
                         <div class="mb-3">
-                            <label for="image" class="form-label">Photo</label>
-                            <input type="file" class="form-control" id="image_point" name="image"
-                                onchange="document.getElementById('preview-image-point').src = window.URL.createObjectURL(this.files[0])">
-                            <img src="" alt="" id="preview-image-point" class="img-thumbnail"
-                                width="300">
+                            <label class="form-label fw-semibold small">Geometri (WKT)</label>
+                            <input type="text" class="form-control form-control-sm font-monospace bg-light"
+                                   id="geom_point" name="geom_point" readonly
+                                   placeholder="Klik pada peta untuk menentukan titik">
                         </div>
-
+                        <div class="mb-1">
+                            <label class="form-label fw-semibold small">Foto (opsional)</label>
+                            <input type="file" class="form-control form-control-sm" name="image" accept="image/*"
+                                   onchange="previewImg(this,'preview-image-point')">
+                            <img src="" alt="" id="preview-image-point" class="img-thumbnail mt-2 d-none" style="max-height:130px">
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" clas="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success btn-sm rounded-pill px-4">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>Simpan
+                        </button>
                     </div>
                 </form>
             </div>
-
         </div>
     </div>
 
-    <!-- Modal Create Polylines -->
-    <div class="modal fade" id="CreatePolylinesModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
+    {{-- Modal Create Polylines --}}
+    <div class="modal fade" id="CreatePolylinesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">Create Polylines</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title"><i class="fa-solid fa-route me-2 text-warning"></i>Tambah Polyline</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" action="{{ route('polylines.store') }}" enctype="multipart/form-data">
-                    <div class="modal-body">
-
-                        @csrf
-
+                    @csrf
+                    <div class="modal-body py-3">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" name="name"
-                                placeholder="Fill polyline name" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="geom_polyline" class="form-label">Geometry</label>
-                            <textarea class="form-control" id="geom_polyline" name="geom_polyline" rows="3"></textarea>
+                            <label class="form-label fw-semibold small">Nama</label>
+                            <input type="text" class="form-control" name="name" required>
                         </div>
                         <div class="mb-3">
-                            <label for="image" class="form-label">Photo</label>
-                            <input type="file" class="form-control" id="image_polyline" name="image"
-                                onchange="document.getElementById('preview-image-polyline').src = window.URL.createObjectURL(this.files[0])">
-                            <img src="" alt="" id="preview-image-polyline" class="img-thumbnail"
-                                width="300">
+                            <label class="form-label fw-semibold small">Deskripsi</label>
+                            <textarea class="form-control" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Geometri (WKT)</label>
+                            <input type="text" class="form-control form-control-sm font-monospace bg-light"
+                                   id="geom_polyline" name="geom_polyline" readonly>
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label fw-semibold small">Foto (opsional)</label>
+                            <input type="file" class="form-control form-control-sm" name="image" accept="image/*"
+                                   onchange="previewImg(this,'preview-image-polyline')">
+                            <img src="" alt="" id="preview-image-polyline" class="img-thumbnail mt-2 d-none" style="max-height:130px">
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning btn-sm rounded-pill px-4 text-dark fw-semibold">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>Simpan
+                        </button>
                     </div>
                 </form>
             </div>
-
         </div>
     </div>
 
-    <!-- Modal Create Polygon -->
-    <div class="modal fade" id="CreatePolygonModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
+    {{-- Modal Create Polygon --}}
+    <div class="modal fade" id="CreatePolygonModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">Create Polygon</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title"><i class="fa-solid fa-draw-polygon me-2 text-danger"></i>Tambah Polygon</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" action="{{ route('polygon.store') }}" enctype="multipart/form-data">
-                    <div class="modal-body">
-
-                        @csrf
-
+                    @csrf
+                    <div class="modal-body py-3">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" name="name"
-                                placeholder="Fill point name" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="geom_polygon" class="form-label">Geometry</label>
-                            <textarea class="form-control" id="geom_polygon" name="geom_polygon" rows="3"></textarea>
+                            <label class="form-label fw-semibold small">Nama</label>
+                            <input type="text" class="form-control" name="name" required>
                         </div>
                         <div class="mb-3">
-                            <label for="image" class="form-label">Photo</label>
-                            <input type="file" class="form-control" id="image_polygon" name="image"
-                                onchange="document.getElementById('preview-image-polygon').src = window.URL.createObjectURL(this.files[0])">
-                            <img src="" alt="" id="preview-image-polygon" class="img-thumbnail"
-                                width="300">
+                            <label class="form-label fw-semibold small">Deskripsi</label>
+                            <textarea class="form-control" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Geometri (WKT)</label>
+                            <input type="text" class="form-control form-control-sm font-monospace bg-light"
+                                   id="geom_polygon" name="geom_polygon" readonly>
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label fw-semibold small">Foto (opsional)</label>
+                            <input type="file" class="form-control form-control-sm" name="image" accept="image/*"
+                                   onchange="previewImg(this,'preview-image-polygon')">
+                            <img src="" alt="" id="preview-image-polygon" class="img-thumbnail mt-2 d-none" style="max-height:130px">
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-danger btn-sm rounded-pill px-4 fw-semibold">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>Simpan
+                        </button>
                     </div>
                 </form>
             </div>
-
         </div>
     </div>
-@endsection
+    @endauth
 
+@endsection
 
 @section('scripts')
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://unpkg.com/@terraformer/wkt"></script>
 
     <script>
-        var map = L.map('map').setView([-7.008052836998501, 110.39784218601451], 12);
+        // ─── Status autentikasi dari server (diputuskan di PHP) ───────────────────
+        var isAuthenticated = {{ auth()->check() ? 'true' : 'false' }};
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        // ─── Inisialisasi peta ────────────────────────────────────────────────────
+        var map = L.map('map', { zoomControl: false })
+                   .setView([-7.008052836998501, 110.39784218601451], 12);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Tile kartografi bersih (CartoDB Light)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            maxZoom: 19
         }).addTo(map);
 
-        // Fungsi untuk membuat legenda
-        var legend = L.control({
-            position: 'bottomright'
-        });
+        // ─── Layer groups ─────────────────────────────────────────────────────────
+        var pointLayer    = L.layerGroup().addTo(map);
+        var polylineLayer = L.layerGroup();
+        var polygonLayer  = L.layerGroup();
+        var jalanLayer, semarangLayer;
+        var uploadedLayerMap = {}; // id => L.geoJson
 
-        legend.onAdd = function(map) {
-            var div = L.DomUtil.create('div', 'info legend');
-            div.innerHTML += '<h4>Legenda</h4>';
-            div.innerHTML += '<i style="background: orange"></i> Batas Administrasi <br>';
-            div.innerHTML += '<i style="background: red"></i> Jalan <br>';
-            div.innerHTML +=
-                '<i style="background: blue; border-radius: 50%; width: 10px; height: 10px; display: inline-block;"></i> Titik Lokasi Wisata<br>';
-            div.innerHTML += '<hr>';
-            div.innerHTML +=
-                '<p><b>Petunjuk:</b><br> - Klik titik untuk detail lokasi<br> - Hover area untuk nama desa</p>';
-            return div;
-        };
+        // ─── Layer state ──────────────────────────────────────────────────────────
+        var layerState = { points: true, semarang: true, jalan: true, polylines: false, polygons: false };
 
-        // Tambahkan legenda ke peta
-        legend.addTo(map);
+        function toggleLayer(name) {
+            layerState[name] = !layerState[name];
+            var chk = document.getElementById('chk' + name.charAt(0).toUpperCase() + name.slice(1));
+            if (chk) chk.checked = layerState[name];
 
-// Variabel untuk layer GeoJSON
-var jalanLayer, semarangLayer;
-
-// Memuat GeoJSON untuk jalan
-fetch("{{ asset('geojson/jalan.geojson') }}") // Path file GeoJSON
-    .then(response => response.json())
-    .then(data => {
-        jalanLayer = L.geoJson(data, {
-            style: function(feature) {
-                return {
-                    color: 'red',
-                    weight: 2, // Ketebalan garis
-                    opacity: 1
-                };
+            switch(name) {
+                case 'points':    layerState[name] ? pointLayer.addTo(map)    : map.removeLayer(pointLayer);    break;
+                case 'polylines': layerState[name] ? polylineLayer.addTo(map) : map.removeLayer(polylineLayer); break;
+                case 'polygons':  layerState[name] ? polygonLayer.addTo(map)  : map.removeLayer(polygonLayer);  break;
+                case 'semarang':  semarangLayer && (layerState[name] ? semarangLayer.addTo(map) : map.removeLayer(semarangLayer)); break;
+                case 'jalan':     jalanLayer    && (layerState[name] ? jalanLayer.addTo(map)    : map.removeLayer(jalanLayer));    break;
             }
-        });
-        jalanLayer.addTo(map); // Menambahkan layer ke peta secara default
-        addLayerControl(); // Menambahkan kontrol setelah layer tersedia
-    })
-    .catch(error => console.error("Error loading GeoJSON jalan:", error));
+        }
 
-// Memuat GeoJSON untuk batas administrasi Semarang
-fetch("{{ asset('geojson/semarang.geojson') }}") // Path file GeoJSON
-    .then(response => response.json())
-    .then(data => {
-        semarangLayer = L.geoJson(data, {
-            style: function(feature) {
-                return {
-                    color: 'orange',
-                    weight: 1,
-                    fillOpacity: 0.5
-                }; // Gaya poligon
-            },
-            onEachFeature: function(feature, layer) {
-                // Menambahkan event mouseover untuk tooltip sementara
-                layer.on('mouseover', function(e) {
-                    const tooltipContent = feature.properties.NAMOBJ || "Nama tidak tersedia";
-                    layer.bindTooltip(tooltipContent, {
-                        permanent: false, // Tooltip sementara
-                        direction: 'top',
-                        className: 'custom-tooltip'
-                    }).openTooltip(e.latlng); // Menampilkan tooltip pada lokasi kursor
-                });
-
-                // Menghapus tooltip saat mouse keluar dari area
-                layer.on('mouseout', function() {
-                    layer.closeTooltip(); // Tooltip otomatis tertutup
-                });
-
-                // Menambahkan popup
-                if (feature.properties && feature.properties.NAMOBJ) {
-                    layer.bindPopup(`Desa: ${feature.properties.NAMOBJ}`);
-                }
-            }
-        });
-        semarangLayer.addTo(map); // Menambahkan layer ke peta secara default
-        addLayerControl(); // Menambahkan kontrol setelah layer tersedia
-    })
-    .catch(error => console.error("Error loading GeoJSON semarang:", error));
-
-// Fungsi untuk menambahkan kontrol layer
-function addLayerControl() {
-    if (jalanLayer && semarangLayer) { // Pastikan kedua layer telah dimuat
-        var overlayLayers = {
-            "Jalan": jalanLayer,
-            "Batas Administrasi Semarang": semarangLayer
-        };
-        L.control.layers(null, overlayLayers, { collapsed: false }).addTo(map);
-    }
-}
-
-
-
-
-        /* Digitize Function */
-        var drawnItems = new L.FeatureGroup();
-        map.addLayer(drawnItems);
-
-        var drawControl = new L.Control.Draw({
-            draw: {
-                position: 'topleft',
-                polyline: false,
-                polygon: false,
-                rectangle: false,
-                circle: false,
-                marker: true,
-                circlemarker: false
-            },
-            edit: false
+        // ─── Ikon & popup helper ──────────────────────────────────────────────────
+        var ptIcon = L.divIcon({
+            className: '',
+            html: '<div style="width:14px;height:14px;background:#1d4ed8;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(29,78,216,.6)"></div>',
+            iconSize: [14,14], iconAnchor: [7,7], popupAnchor: [0,-8]
         });
 
-        map.addControl(drawControl);
+        function buildPopup(name, desc, image, meta, actions) {
+            var imgHtml = image
+                ? "<img src='{{ asset('storage/images') }}/" + image + "' style='width:100%;height:110px;object-fit:cover'>"
+                : '';
+            return "<div class='popup-card'>" +
+                   imgHtml +
+                   "<div style='" + (imgHtml ? 'margin-top:10px' : '') + "'>" +
+                   "<div class='popup-title'>" + name + "</div>" +
+                   "<div class='popup-desc'>" + (desc || '—') + "</div>" +
+                   "<div class='popup-meta'>" + meta + "</div>" +
+                   (actions ? "<div class='popup-actions'>" + actions + "</div>" : '') +
+                   "</div></div>";
+        }
 
-        // Initialize layer groups
-        var pointLayer = L.layerGroup().addTo(map);
-        var polylineLayer = L.layerGroup().addTo(map);
-        var polygonLayer = L.layerGroup().addTo(map);
+        function editBtn(route) {
+            return "<a href='" + route + "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square me-1'></i>Edit</a>";
+        }
 
-        // Load Points
+        function deleteBtn(route) {
+            return "<form method='POST' action='" + route + "' style='display:inline'>" +
+                   "<input type='hidden' name='_token' value='{{ csrf_token() }}'>" +
+                   "<input type='hidden' name='_method' value='DELETE'>" +
+                   "<button type='submit' class='btn btn-danger btn-sm' onclick='return confirm(\"Hapus data ini?\")'>" +
+                   "<i class='fa-solid fa-trash me-1'></i>Hapus</button></form>";
+        }
+
+        // ─── Load Points ──────────────────────────────────────────────────────────
         function loadPoints() {
             $.getJSON("{{ route('api.points') }}", function(data) {
                 pointLayer.clearLayers();
                 L.geoJson(data, {
+                    pointToLayer: function(f, latlng) { return L.marker(latlng, {icon: ptIcon}); },
                     onEachFeature: function(feature, layer) {
-                        var routedelete = "{{ route('points.destroy', ':id') }}";
-                        routedelete = routedelete.replace(':id', feature.properties.id);
-
-                        var routeedit = "{{ route('points.edit', ':id') }}";
-                        routeedit = routeedit.replace(':id', feature.properties.id);
-
-                        var popupContent = "Nama: " + feature.properties.name + "<br>" +
-                            "Deskripsi: " + feature.properties.description + "<br>" +
-                            "Dibuat: " + feature.properties.created_at + "<br>" +
-                            "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
-                            "' width='250' alt=''>" + "<br>" +
-                            "<div class='row mt-4'>" +
-                            "<div class='col-6 text-end'>" +
-                            "<a href='" + routeedit +
-                            "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square'></i></a>" +
-                            "</div>" +
-                            "<div class='col-6'>" +
-                            "<form method='POST' action='" + routedelete + "'>" +
-                            '@csrf' + '@method('DELETE')' +
-                            "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
-                            "</form>" +
-                            "</div>" +
-                            "</div>" + "<br>" +
-                            "<p>Dibuat oleh: " + feature.properties.user_created + "</p>";
-
-                        layer.bindPopup(popupContent);
-                        layer.bindTooltip(feature.properties.name);
+                        var p = feature.properties;
+                        var actions = '';
+                        if (isAuthenticated) {
+                            actions = editBtn("{{ route('points.edit', ':id') }}".replace(':id', p.id))
+                                    + deleteBtn("{{ route('points.destroy', ':id') }}".replace(':id', p.id));
+                        }
+                        var meta = (p.user_created ? '<i class="fa-solid fa-user fa-xs me-1"></i>' + p.user_created + ' · ' : '')
+                                 + (p.created_at || '');
+                        layer.bindPopup(buildPopup(p.name, p.description, p.image, meta, actions), { maxWidth: 290 });
+                        layer.bindTooltip(p.name, { direction: 'top', className: '' });
                     }
                 }).addTo(pointLayer);
             });
         }
 
-        // Load Polylines
+        // ─── Load Polylines ───────────────────────────────────────────────────────
         function loadPolylines() {
             $.getJSON("{{ route('api.polylines') }}", function(data) {
                 polylineLayer.clearLayers();
                 L.geoJson(data, {
+                    style: { color: '#8b5cf6', weight: 3, opacity: .85 },
                     onEachFeature: function(feature, layer) {
-                        var routedelete = "{{ route('polylines.destroy', ':id') }}";
-                        routedelete = routedelete.replace(':id', feature.properties.id);
-
-                        var routeedit = "{{ route('polylines.edit', ':id') }}";
-                        routeedit = routeedit.replace(':id', feature.properties.id);
-
-                        var popupContent = "Nama: " + feature.properties.name + "<br>" +
-                            "Deskripsi: " + feature.properties.description + "<br>" +
-                            "Panjang: " + feature.properties.length_km.toFixed(2) + " km" + "<br>" +
-                            "Dibuat: " + feature.properties.created_at + "<br>" +
-                            "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
-                            "' width='250' alt=''>" + "<br>" +
-                            "<div class='row mt-4'>" +
-                            "<div class='col-6 text-end'>" +
-                            "<a href='" + routeedit +
-                            "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square'></i></a>" +
-                            "</div>" +
-                            "<div class='col-6'>" +
-                            "<form method='POST' action='" + routedelete + "'>" +
-                            '@csrf' + '@method('DELETE')' +
-                            "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
-                            "</form>" +
-                            "</div>" +
-                            "</div>" + "</br>" +
-                            "<p>Dibuat oleh: " + feature.properties.user_created + "</p>";
-
-                        layer.bindPopup(popupContent);
-                        layer.bindTooltip(feature.properties.name);
+                        var p = feature.properties;
+                        var actions = '';
+                        if (isAuthenticated) {
+                            actions = editBtn("{{ route('polylines.edit', ':id') }}".replace(':id', p.id))
+                                    + deleteBtn("{{ route('polylines.destroy', ':id') }}".replace(':id', p.id));
+                        }
+                        var meta = (p.length_km ? p.length_km.toFixed(2) + ' km · ' : '') + (p.user_created || '');
+                        layer.bindPopup(buildPopup(p.name, p.description, p.image, meta, actions), { maxWidth: 290 });
+                        layer.bindTooltip(p.name, { direction: 'top' });
                     }
                 }).addTo(polylineLayer);
             });
         }
 
-        // Load Polygons
+        // ─── Load Polygons ────────────────────────────────────────────────────────
         function loadPolygons() {
             $.getJSON("{{ route('api.polygon') }}", function(data) {
                 polygonLayer.clearLayers();
                 L.geoJson(data, {
+                    style: { color: '#10b981', weight: 2, fillOpacity: .12 },
                     onEachFeature: function(feature, layer) {
-                        var routedelete = "{{ route('polygon.destroy', ':id') }}";
-                        routedelete = routedelete.replace(':id', feature.properties.id);
-
-                        var routeedit = "{{ route('polygon.edit', ':id') }}";
-                        routeedit = routeedit.replace(':id', feature.properties.id);
-
-                        // Debug log untuk memeriksa data
-                        console.log('Feature properties:', feature.properties);
-
-                        var imageUrl = feature.properties.image ?
-                            "{{ asset('storage/images') }}/" + feature.properties.image :
-                            null;
-
-                        // Debug log untuk URL gambar
-                        console.log('Image URL:', imageUrl);
-
-                        var imageHtml = feature.properties.image ?
-                            "<img src='" + imageUrl +
-                            "' width='250' style='max-width: 100%;' onerror='console.log(\"Error loading image:\", this.src); this.onerror=null; this.src=\"{{ asset('images/no-image.png') }}\";' alt='Polygon Image'><br>" :
-                            "<p>No image available</p>";
-
-                        var popupContent = "Nama: " + feature.properties.name + "<br>" +
-                            "Deskripsi: " + feature.properties.description + "<br>" +
-                            "Luas: " + feature.properties.luas_hektar.toFixed(2) + " hektar" + "<br>" +
-                            "Dibuat: " + feature.properties.created_at + "<br>" +
-                            imageHtml +
-                            "<div class='row mt-4'>" +
-                            "<div class='col-6 text-end'>" +
-                            "<a href='" + routeedit +
-                            "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square'></i></a>" +
-                            "</div>" +
-                            "<div class='col-6'>" +
-                            "<form method='POST' action='" + routedelete + "'>" +
-                            '@csrf' + '@method('DELETE')' +
-                            "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
-                            "</form>" +
-                            "</div>" +
-                            "</div>" + "</br>" +
-                            "<p>Dibuat oleh: " + feature.properties.user_created + "</p>";
-
-                        layer.bindPopup(popupContent);
-                        layer.bindTooltip(feature.properties.name);
+                        var p = feature.properties;
+                        var actions = '';
+                        if (isAuthenticated) {
+                            actions = editBtn("{{ route('polygon.edit', ':id') }}".replace(':id', p.id))
+                                    + deleteBtn("{{ route('polygon.destroy', ':id') }}".replace(':id', p.id));
+                        }
+                        var meta = (p.luas_hektar ? p.luas_hektar.toFixed(2) + ' ha · ' : '') + (p.user_created || '');
+                        layer.bindPopup(buildPopup(p.name, p.description, p.image, meta, actions), { maxWidth: 290 });
+                        layer.bindTooltip(p.name, { direction: 'top' });
                     }
                 }).addTo(polygonLayer);
             });
         }
 
-        // Load all layers initially
+        // ─── Load static GeoJSON (jalan + semarang) ───────────────────────────────
+        fetch("{{ asset('geojson/jalan.geojson') }}")
+            .then(r => r.json())
+            .then(data => {
+                jalanLayer = L.geoJson(data, { style: { color: '#ef4444', weight: 1.5, opacity: .8 } }).addTo(map);
+            }).catch(() => {});
+
+        fetch("{{ asset('geojson/semarang.geojson') }}")
+            .then(r => r.json())
+            .then(data => {
+                semarangLayer = L.geoJson(data, {
+                    style: { color: '#f59e0b', weight: 1.5, fillOpacity: .12 },
+                    onEachFeature: function(feature, layer) {
+                        if (feature.properties && feature.properties.NAMOBJ) {
+                            layer.bindTooltip(feature.properties.NAMOBJ, { direction: 'top', sticky: true });
+                            layer.bindPopup('Kelurahan: <strong>' + feature.properties.NAMOBJ + '</strong>');
+                        }
+                    }
+                }).addTo(map);
+            }).catch(() => {});
+
+        // ─── Load uploaded GeoJSON dari API ───────────────────────────────────────
+        $.getJSON("{{ route('api.geojson') }}", function(files) {
+            var container = document.getElementById('uploadedLayers');
+            if (!files.length) return;
+
+            var sep = document.createElement('div');
+            sep.style.cssText = 'border-top:1px solid rgba(255,255,255,.08);margin:.6rem 0 .5rem';
+            container.appendChild(sep);
+
+            var label = document.createElement('div');
+            label.className = 'panel-title';
+            label.innerHTML = '<i class="fa-solid fa-upload me-2"></i>Layer Upload';
+            container.appendChild(label);
+
+            files.forEach(function(f) {
+                $.getJSON("{{ url('/api/geojson') }}/" + f.id, function(geoData) {
+                    var gLayer = L.geoJson(geoData, {
+                        style: { color: f.color, weight: 2, fillOpacity: f.type === 'polygon' ? .15 : 0 }
+                    }).addTo(map);
+                    uploadedLayerMap[f.id] = gLayer;
+
+                    // Tambah toggle di panel
+                    var row = document.createElement('div');
+                    row.className = 'layer-toggle';
+                    row.innerHTML =
+                        "<span><span class='layer-dot' style='background:" + f.color + "'></span>" + f.name + "</span>" +
+                        "<input class='form-check-input' type='checkbox' checked " +
+                        "onclick='event.stopPropagation();toggleUploadedLayer(" + f.id + ",this)'>";
+                    container.appendChild(row);
+                    row.addEventListener('click', function() { toggleUploadedLayer(f.id, row.querySelector('input')); });
+                });
+            });
+        });
+
+        function toggleUploadedLayer(id, chk) {
+            var layer = uploadedLayerMap[id];
+            if (!layer) return;
+            if (map.hasLayer(layer)) { map.removeLayer(layer); chk.checked = false; }
+            else                     { layer.addTo(map);        chk.checked = true;  }
+        }
+
+        // ─── Legenda ──────────────────────────────────────────────────────────────
+        var legend = L.control({ position: 'bottomleft' });
+        legend.onAdd = function() {
+            var div = L.DomUtil.create('div', 'map-legend');
+            div.innerHTML =
+                '<h4><i class="fa-solid fa-circle-info me-1"></i>Legenda</h4>' +
+                '<div class="legend-row"><span style="width:20px;height:3px;background:#ef4444;display:inline-block;border-radius:2px"></span>Jalan</div>' +
+                '<div class="legend-row"><span style="width:14px;height:14px;border-radius:3px;background:#f59e0b;opacity:.7;display:inline-block"></span>Batas Administrasi</div>' +
+                '<div class="legend-row"><span style="width:12px;height:12px;border-radius:50%;background:#1d4ed8;display:inline-block;box-shadow:0 1px 4px rgba(29,78,216,.5)"></span>Objek Wisata</div>';
+            return div;
+        };
+        legend.addTo(map);
+
+        // ─── Initial load ─────────────────────────────────────────────────────────
         loadPoints();
+        // Polylines & polygon dimuat hanya saat checkbox dicentang (tidak autoload)
 
+        // Checkbox init listeners untuk polylines & polygons
+        document.getElementById('chkPolylines').addEventListener('change', function() {
+            if (this.checked) { loadPolylines(); polylineLayer.addTo(map); layerState.polylines = true; }
+            else { map.removeLayer(polylineLayer); layerState.polylines = false; }
+        });
+        document.getElementById('chkPolygons').addEventListener('change', function() {
+            if (this.checked) { loadPolygons(); polygonLayer.addTo(map); layerState.polygons = true; }
+            else { map.removeLayer(polygonLayer); layerState.polygons = false; }
+        });
 
-        // Handle dropdown changes
-        $('#layerSelect').on('change', function() {
-            var selectedValue = $(this).val();
+        // ─── Digitize (hanya auth) ────────────────────────────────────────────────
+        if (isAuthenticated) {
+            var drawnItems = new L.FeatureGroup().addTo(map);
 
-            // Hide all layers first
-            pointLayer.clearLayers();
-            polylineLayer.clearLayers();
-            polygonLayer.clearLayers();
+            var drawControl = new L.Control.Draw({
+                draw: {
+                    marker: true,
+                    polyline: { shapeOptions: { color: '#8b5cf6' } },
+                    polygon:  { shapeOptions: { color: '#10b981', fillOpacity: .15 } },
+                    rectangle: false, circle: false, circlemarker: false
+                },
+                edit: { featureGroup: drawnItems }
+            });
+            map.addControl(drawControl);
 
-            // Show selected layers
-            if (selectedValue === 'all' || selectedValue === 'points') {
-                loadPoints();
+            map.on('draw:created', function(e) {
+                var type  = e.layerType;
+                var layer = e.layer;
+                var wkt   = Terraformer.geojsonToWKT(layer.toGeoJSON().geometry);
+                drawnItems.addLayer(layer);
+
+                if (type === 'marker') {
+                    document.getElementById('geom_point').value = wkt;
+                    new bootstrap.Modal(document.getElementById('CreatePointModal')).show();
+                } else if (type === 'polyline') {
+                    document.getElementById('geom_polyline').value = wkt;
+                    new bootstrap.Modal(document.getElementById('CreatePolylinesModal')).show();
+                } else if (type === 'polygon') {
+                    document.getElementById('geom_polygon').value = wkt;
+                    new bootstrap.Modal(document.getElementById('CreatePolygonModal')).show();
+                }
+            });
+
+            document.getElementById('btnAddPoint').addEventListener('click', function() {
+                // Aktifkan tool marker draw
+                new L.Draw.Marker(map, drawControl.options.draw.marker).enable();
+            });
+        }
+
+        // ─── Utilitas ─────────────────────────────────────────────────────────────
+        function previewImg(input, previewId) {
+            var el = document.getElementById(previewId);
+            if (input.files && input.files[0]) {
+                el.src = URL.createObjectURL(input.files[0]);
+                el.classList.remove('d-none');
             }
-
-
-        });
-
-        map.on('draw:created', function(e) {
-            var type = e.layerType,
-                layer = e.layer;
-
-            console.log(type);
-
-            var drawnJSONObject = layer.toGeoJSON();
-            var objectGeometry = Terraformer.geojsonToWKT(drawnJSONObject.geometry);
-
-
-            console.log(drawnJSONObject);
-            //console.log(objectGeometry);
-
-           map.on('draw:created', function(e) {
-    var type = e.layerType,
-        layer = e.layer;
-
-    if (type === 'marker') { // Hanya menangani marker
-        console.log("Create " + type);
-
-        var drawnJSONObject = layer.toGeoJSON();
-        var objectGeometry = Terraformer.geojsonToWKT(drawnJSONObject.geometry);
-
-        // Masukkan geometri marker ke input modal
-        $('#geom_point').val(objectGeometry);
-
-        // Tampilkan modal untuk menambahkan data marker
-        $('#CreatePointModal').modal('show');
-
-        // Tambahkan marker ke peta
-        drawnItems.addLayer(layer);
-    } else {
-        // Abaikan jenis geometri lainnya
-        console.log("Hanya marker yang diperbolehkan.");
-    }
-});
-
-        });
+        }
     </script>
 @endsection
