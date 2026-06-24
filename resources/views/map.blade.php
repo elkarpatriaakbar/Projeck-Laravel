@@ -92,14 +92,36 @@
             padding: 0 !important;
             overflow: hidden;
         }
-        .leaflet-popup-content { margin: 0 !important; width: 270px !important; }
+        .leaflet-popup-content { margin: 0 !important; width: 280px !important; }
         .popup-card { padding: 14px; }
-        .popup-card img { width: 100%; height: 120px; object-fit: cover; }
         .popup-card .popup-title { font-weight: 700; font-size: .95rem; margin-bottom: 3px; }
-        .popup-card .popup-desc { font-size: .8rem; color: #6c757d; margin-bottom: 6px; }
-        .popup-card .popup-meta { font-size: .72rem; color: #9ca3af; }
-        .popup-actions { display: flex; gap: 6px; margin-top: 10px; }
-        .popup-actions .btn { font-size: .78rem; padding: .3rem .8rem; border-radius: 20px; }
+        .popup-card .popup-desc {
+            font-size: .8rem; color: #6c757d; margin-bottom: 6px;
+            overflow-wrap: break-word; word-break: break-word;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .popup-card .popup-meta { font-size: .72rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .popup-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .popup-actions .btn { font-size: .75rem; padding: .28rem .75rem; border-radius: 20px; }
+
+        /* Popup mini photo slider */
+        .popup-slider { position: relative; height: 140px; overflow: hidden; background: #0f172a; }
+        .popup-slider img { width: 100%; height: 140px; object-fit: cover; display: none; }
+        .popup-slider img.ps-active { display: block; }
+        .ps-ctrl {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,.55));
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 4px 8px;
+        }
+        .ps-btn {
+            background: rgba(255,255,255,.2); border: none; color: white;
+            width: 24px; height: 24px; border-radius: 50%;
+            font-size: .9rem; line-height: 1; cursor: pointer;
+            transition: background .15s;
+        }
+        .ps-btn:hover { background: rgba(255,255,255,.4); }
+        .ps-idx { color: rgba(255,255,255,.85); font-size: .72rem; }
 
         /* Modal modern */
         .modal-content { border: none; border-radius: 16px; overflow: hidden; }
@@ -179,10 +201,10 @@
                                    placeholder="Klik pada peta untuk menentukan titik">
                         </div>
                         <div class="mb-1">
-                            <label class="form-label fw-semibold small">Foto (opsional)</label>
-                            <input type="file" class="form-control form-control-sm" name="image" accept="image/*"
-                                   onchange="previewImg(this,'preview-image-point')">
-                            <img src="" alt="" id="preview-image-point" class="img-thumbnail mt-2 d-none" style="max-height:130px">
+                            <label class="form-label fw-semibold small">Foto (bisa lebih dari satu)</label>
+                            <input type="file" class="form-control form-control-sm" name="images[]"
+                                   accept="image/*" multiple onchange="previewMultiImg(this,'preview-point-imgs')">
+                            <div id="preview-point-imgs" class="d-flex flex-wrap gap-1 mt-2"></div>
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
@@ -337,51 +359,106 @@
             iconSize: [14,14], iconAnchor: [7,7], popupAnchor: [0,-8]
         });
 
-        function buildPopup(name, desc, image, meta, actions) {
-            var imgHtml = image
-                ? "<img src='{{ asset('storage/images') }}/" + image + "' style='width:100%;height:110px;object-fit:cover'>"
-                : '';
-            return "<div class='popup-card'>" +
-                   imgHtml +
-                   "<div style='" + (imgHtml ? 'margin-top:10px' : '') + "'>" +
+        // Slider state: pointId => currentIndex
+        var psState = {};
+
+        // Geser foto di popup
+        window.pSlide = function(id, dir) {
+            var imgs = document.querySelectorAll('#pslide-' + id + ' img');
+            if (!imgs.length) return;
+            psState[id] = ((psState[id] || 0) + dir + imgs.length) % imgs.length;
+            imgs.forEach(function(img, i) { img.classList.toggle('ps-active', i === psState[id]); });
+            var el = document.getElementById('pIdx-' + id);
+            if (el) el.textContent = (psState[id] + 1) + '/' + imgs.length;
+        };
+
+        function buildImgSlider(id, images) {
+            if (!images || images.length === 0) return '';
+            if (images.length === 1) {
+                return "<div class='popup-slider'>" +
+                       "<img src='{{ asset('storage/images') }}/" + images[0] + "' class='ps-active'>" +
+                       "</div>";
+            }
+            var imgTags = images.map(function(src, i) {
+                return "<img src='{{ asset('storage/images') }}/" + src + "' class='" + (i === 0 ? 'ps-active' : '') + "'>";
+            }).join('');
+            return "<div class='popup-slider' id='pslide-" + id + "'>" +
+                   imgTags +
+                   "<div class='ps-ctrl'>" +
+                   "<button class='ps-btn' onclick='pSlide(" + id + ",-1)'>&#8249;</button>" +
+                   "<span class='ps-idx' id='pIdx-" + id + "'>1/" + images.length + "</span>" +
+                   "<button class='ps-btn' onclick='pSlide(" + id + ",1)'>&#8250;</button>" +
+                   "</div></div>";
+        }
+
+        function fmtDate(iso) {
+            if (!iso) return '';
+            try {
+                return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            } catch(e) { return iso; }
+        }
+
+        function buildPopup(id, name, desc, images, detailUrl, meta, actions) {
+            return buildImgSlider(id, images) +
+                   "<div class='popup-card'>" +
                    "<div class='popup-title'>" + name + "</div>" +
                    "<div class='popup-desc'>" + (desc || '—') + "</div>" +
                    "<div class='popup-meta'>" + meta + "</div>" +
-                   (actions ? "<div class='popup-actions'>" + actions + "</div>" : '') +
+                   "<div class='popup-actions'>" +
+                   "<a href='" + detailUrl + "' class='btn btn-sm btn-dark rounded-pill'>" +
+                   "<i class='fa-solid fa-circle-info me-1'></i>Detail</a>" +
+                   (actions || '') +
                    "</div></div>";
         }
 
         function editBtn(route) {
-            return "<a href='" + route + "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square me-1'></i>Edit</a>";
+            return "<a href='" + route + "' class='btn btn-warning btn-sm rounded-pill'><i class='fa-solid fa-pen-to-square me-1'></i>Edit</a>";
         }
 
         function deleteBtn(route) {
             return "<form method='POST' action='" + route + "' style='display:inline'>" +
                    "<input type='hidden' name='_token' value='{{ csrf_token() }}'>" +
                    "<input type='hidden' name='_method' value='DELETE'>" +
-                   "<button type='submit' class='btn btn-danger btn-sm' onclick='return confirm(\"Hapus data ini?\")'>" +
+                   "<button type='submit' class='btn btn-danger btn-sm rounded-pill' onclick='return confirm(\"Hapus data ini?\")'>" +
                    "<i class='fa-solid fa-trash me-1'></i>Hapus</button></form>";
         }
 
-        // ─── Load Points ──────────────────────────────────────────────────────────
+        // ─── Load Points ─────────────────────────────────────────────────────────
+        var pointMarkers = {}; // id => Leaflet marker layer (untuk zoom)
+
         function loadPoints() {
             $.getJSON("{{ route('api.points') }}", function(data) {
                 pointLayer.clearLayers();
+                pointMarkers = {};
+
                 L.geoJson(data, {
-                    pointToLayer: function(f, latlng) { return L.marker(latlng, {icon: ptIcon}); },
+                    pointToLayer: function(f, latlng) {
+                        var m = L.marker(latlng, { icon: ptIcon });
+                        pointMarkers[f.properties.id] = { latlng: latlng, layer: m };
+                        return m;
+                    },
                     onEachFeature: function(feature, layer) {
-                        var p = feature.properties;
+                        var p       = feature.properties;
                         var actions = '';
                         if (isAuthenticated) {
                             actions = editBtn("{{ route('points.edit', ':id') }}".replace(':id', p.id))
                                     + deleteBtn("{{ route('points.destroy', ':id') }}".replace(':id', p.id));
                         }
-                        var meta = (p.user_created ? '<i class="fa-solid fa-user fa-xs me-1"></i>' + p.user_created + ' · ' : '')
-                                 + (p.created_at || '');
-                        layer.bindPopup(buildPopup(p.name, p.description, p.image, meta, actions), { maxWidth: 290 });
-                        layer.bindTooltip(p.name, { direction: 'top', className: '' });
+                        var meta       = (p.user_created ? '<i class="fa-solid fa-user fa-xs me-1"></i>' + p.user_created + ' · ' : '') + fmtDate(p.created_at);
+                        var detailUrl  = "{{ route('destinasi.show', ':id') }}".replace(':id', p.id);
+                        var imgs       = p.images && p.images.length ? p.images : (p.image ? [p.image] : []);
+
+                        layer.bindPopup(buildPopup(p.id, p.name, p.description, imgs, detailUrl, meta, actions), { maxWidth: 300 });
+                        layer.bindTooltip(p.name, { direction: 'top' });
                     }
                 }).addTo(pointLayer);
+
+                // Zoom ke titik dari URL param ?point=ID
+                var urlId = parseInt(new URLSearchParams(window.location.search).get('point'));
+                if (urlId && pointMarkers[urlId]) {
+                    map.setView(pointMarkers[urlId].latlng, 17, { animate: true });
+                    setTimeout(function() { pointMarkers[urlId].layer.openPopup(); }, 600);
+                }
             });
         }
 
@@ -398,7 +475,7 @@
                             actions = editBtn("{{ route('polylines.edit', ':id') }}".replace(':id', p.id))
                                     + deleteBtn("{{ route('polylines.destroy', ':id') }}".replace(':id', p.id));
                         }
-                        var meta = (p.length_km ? p.length_km.toFixed(2) + ' km · ' : '') + (p.user_created || '');
+                        var meta = (p.length_km ? p.length_km.toFixed(2) + ' km · ' : '') + (p.user_created || '') + (p.created_at ? ' · ' + fmtDate(p.created_at) : '');
                         layer.bindPopup(buildPopup(p.name, p.description, p.image, meta, actions), { maxWidth: 290 });
                         layer.bindTooltip(p.name, { direction: 'top' });
                     }
@@ -419,7 +496,7 @@
                             actions = editBtn("{{ route('polygon.edit', ':id') }}".replace(':id', p.id))
                                     + deleteBtn("{{ route('polygon.destroy', ':id') }}".replace(':id', p.id));
                         }
-                        var meta = (p.luas_hektar ? p.luas_hektar.toFixed(2) + ' ha · ' : '') + (p.user_created || '');
+                        var meta = (p.luas_hektar ? p.luas_hektar.toFixed(2) + ' ha · ' : '') + (p.user_created || '') + (p.created_at ? ' · ' + fmtDate(p.created_at) : '');
                         layer.bindPopup(buildPopup(p.name, p.description, p.image, meta, actions), { maxWidth: 290 });
                         layer.bindTooltip(p.name, { direction: 'top' });
                     }
@@ -562,6 +639,17 @@
                 el.src = URL.createObjectURL(input.files[0]);
                 el.classList.remove('d-none');
             }
+        }
+
+        function previewMultiImg(input, containerId) {
+            var container = document.getElementById(containerId);
+            container.innerHTML = '';
+            Array.from(input.files).forEach(function(file) {
+                var img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.style.cssText = 'height:70px;width:100px;object-fit:cover;border-radius:8px';
+                container.appendChild(img);
+            });
         }
     </script>
 @endsection

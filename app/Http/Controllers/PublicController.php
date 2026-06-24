@@ -11,7 +11,7 @@ class PublicController extends Controller
         return view('home', [
             'title'  => 'Home',
             // Ambil data objek wisata dari tabel points
-            'points' => PointsModel::select('id', 'name', 'description', 'image')->latest()->get(),
+            'points' => PointsModel::select('id', 'name', 'description', 'image')->with('images')->latest()->get(),
         ]);
     }
 }

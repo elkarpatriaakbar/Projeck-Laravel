@@ -18,6 +18,9 @@ Route::get('/', [PublicController::class, 'index'])->name('home');
 Route::get('/map', [PointsController::class, 'index'])->name('map');
 Route::get('/table', [TableController::class, 'index'])->name('table');
 
+// Halaman detail publik objek wisata (per titik) — harus sebelum resource auth agar bisa diakses guest
+Route::get('/destinasi/{id}', [PointsController::class, 'show'])->name('destinasi.show');
+
 // ============================================================
 // Wisata — Route Public (Index & Show)
 // PENTING: definisikan 'wisata/create' SEBELUM 'wisata/{wisata}'
