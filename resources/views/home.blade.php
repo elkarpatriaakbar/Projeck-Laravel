@@ -642,7 +642,7 @@
                     <h6 class="fw-bold mb-1">WhatsApp</h6>
                     <p class="text-secondary small mb-3">Chat langsung dengan kami</p>
                     <a href="https://wa.me/6281277554529"
-                       class="btn btn-outline-success btn-sm rounded-pill px-3 w-100">+62 896-8846-5454</a>
+                       class="btn btn-outline-success btn-sm rounded-pill px-3 w-100">+62 812-7755-4529</a>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6" data-aos="fade-up" data-aos-delay="80">
@@ -653,7 +653,7 @@
                     <h6 class="fw-bold mb-1">Instagram</h6>
                     <p class="text-secondary small mb-3">Ikuti kami di Instagram</p>
                     <a href="https://www.instagram.com/elkar21"
-                       class="btn btn-outline-danger btn-sm rounded-pill px-3 w-100">@belindaasyl</a>
+                       class="btn btn-outline-danger btn-sm rounded-pill px-3 w-100">@elkar21</a>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6" data-aos="fade-up" data-aos-delay="160">
@@ -664,7 +664,7 @@
                     <h6 class="fw-bold mb-1">LinkedIn</h6>
                     <p class="text-secondary small mb-3">Terhubung secara profesional</p>
                     <a href="https://www.linkedin.com/in/elkar-patria-akbar/"
-                       class="btn btn-outline-primary btn-sm rounded-pill px-3 w-100">/in/belinda-sandyawela</a>
+                       class="btn btn-outline-primary btn-sm rounded-pill px-3 w-100">elkar-patria-akbar</a>
                 </div>
             </div>
         </div>
