@@ -8,37 +8,38 @@ use App\Http\Controllers\PublicController;
 use App\Http\Controllers\PolygonController;
 use App\Http\Controllers\PolylinesController;
 
-// Route halaman utama
+// ============================================================
+// Public Routes — bisa diakses tanpa login
+// ============================================================
 Route::get('/', [PublicController::class, 'index'])->name('home');
-Route::get('/map-sidebar', function () {
-    return view('map_with_sidebar');
-});
-
-
-// Route yang dapat diakses oleh guest
 Route::get('/map', [PointsController::class, 'index'])->name('map');
 Route::get('/table', [TableController::class, 'index'])->name('table');
 
-// Route dashboard (dilindungi oleh auth dan verified middleware)
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// ============================================================
+// Auth Routes — harus login
+// ============================================================
+Route::middleware(['auth', 'verified'])->group(function () {
 
-// Route yang membutuhkan autentikasi
-Route::middleware('auth')->group(function () {
+    // Dashboard
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
+
+    // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Group protected resources
+    // CRUD Points, Polylines, Polygon
     Route::resources([
-        'points' => PointsController::class,
+        'points'    => PointsController::class,
         'polylines' => PolylinesController::class,
-        'polygon' => PolygonController::class,
+        'polygon'   => PolygonController::class,
     ]);
-
 
 });
 
-// Auth routes
+// ============================================================
+// Auth (login, register, dll)
+// ============================================================
 require __DIR__.'/auth.php';

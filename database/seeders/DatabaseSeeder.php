@@ -17,15 +17,15 @@ class DatabaseSeeder extends Seeder
 
         User::factory()->create(
             [
-            'name' => 'Sandyawela',
-            'email' => 'belindasandyawela2004@mail.ugm.ac.id',
+            'name' => 'Elkar Patria Akbar',
+            'email' => 'elkarpatriaakbar@mail.ugm.ac.id',
             'password' => bcrypt('admin123'),
         ]);
 
         User::factory()->create(
             [
-            'name' => 'Belinda',
-            'email' => 'sandyawela@gmail.com',
+            'name' => 'Elkar',
+            'email' => 'elkar@gmail.com',
             'password' => bcrypt('admin123'),
         ]);
 

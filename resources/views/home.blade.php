@@ -146,10 +146,10 @@
     <main class="hero-section text-white text-center">
         <div class="overlay"></div>
         <div class="hero-text container">
-            <h1 class="display-4 fw-bold text-warning">SAMĀRAṄGA</h1>
-            <h2 class="display-7 fw-bold text-warning">"Harmoni Keindahan dan Keberagaman di Semarang"</h2>
+            <h1 class="display-4 fw-bold text-warning">ARCADĪPA</h1>
+            <h2 class="display-7 fw-bold text-warning">"Pelita Spasial: Menyinari Keindahan Sejarah dan Ruang Semarang"</h2>
             <p class="mt-3 fst-italic text-light">
-                Dibuat oleh: Belinda Sandyawela – 23/518310/SV/22951
+                Dibuat oleh: Elkar Patria Akbar – 25/569213/SV/27612
             </p>
         </div>
     </main>
